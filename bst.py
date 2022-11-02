@@ -1,149 +1,222 @@
-from xmlrpc.client import Boolean
-
-
 class BinarySearchTree:
-    # strategy = GPAOrder() TO do now : figure out how to do the strategy method
-    def __init__(self):
-        self._root = self.NullNode()
 
-    def for_each(self, lambda_arg):
-        self._root.for_each(lambda_arg)
-        # iterate through each element in the tree
-        # lambda_arg(tree.val?)
+    def __init__(self, strategy: 'Strategy'):
+        self._strategy = strategy
+        self._root = NullNode()
 
-    def insert(self, last_name, first_name, gpa, redID):
-        new_node = self.RealNode(last_name, first_name, gpa, redID)
-        new_node._left_child = self.NullNode()
-        new_node._right_child = self.NullNode()
-        self._root = self._root.insert(new_node, self._root)
+    def for_each(self, lambda_function) -> None:
+        self._root.for_each(lambda_function)
 
-    class Node:
-        def for_each(self):
-            pass
+    def insert(
+            self, first_name: str, last_name: str,
+            red_id: int, gpa: float) -> None:
+        new_student = Student(first_name, last_name, red_id, gpa)
+        self._root = self._root.insert(new_student, self._strategy)
 
-        def insert(self, new_node, parent_node):
-            pass
+    def accept(self, visitor: 'Visitor') -> None:
+        self._root.accept(visitor)
 
-        def toString(self):
-            pass
-
-    class RealNode(Node):
-        def __init__(self, last_name: str, first_name: str, red_id: str, gpa: float):
-            self._first_name = first_name
-            self._last_name = last_name
-            self._red_id = red_id
-            self._gpa = gpa
-            self._left_child = None
-            self._right_child = None
-
-        def toString(self):
-            return self._last_name, self._first_name, self._gpa, self._red_id
-
-        def get_gpa(self):
-            return self._gpa
-
-        def get_last_name(self):
-            return self._last_name
-
-        def get_first_name(self):
-            return self._first_name
-
-        def for_each(self, lambda_arg):
-            lambda_arg(self)
-            self._left_child.for_each(lambda_arg)
-            self._right_child.for_each(lambda_arg)
-
-        def insert(self, new_node, parent_node):
-
-            # replace this comparison with strategy comparison method
-            if new_node._gpa < self._gpa:
-                self._left_child = self._left_child.insert(
-                    new_node, self._left_child)
-            else:
-                self._right_child = self._right_child.insert(
-                    new_node, self._right_child)
-            return parent_node
-
-    class NullNode(Node):
-
-        def for_each(self, lambda_arg):
-            return
-
-        def insert(self, new_node, parent_node):
-            return new_node
-
-        def toString(self):
-            return 'NULL NODE'
+    def search(self, first_name: str, last_name: str,
+               red_id: int, gpa: float) -> bool:
+        """
+        Returns true if a student with the same unique red id is found, 
+        false otherwise.
+        """
+        key_node = Student(first_name, last_name, red_id, gpa)
+        return self._root.search(key_node, self._strategy)
 
 
-class Strategy:
-    def greater_than(node1, node2):
+class Node:
+
+    def get_left(self):
+        pass
+
+    def get_right(self):
+        pass
+
+    def for_each(self):
+        pass
+
+    def insert(self, new_student: 'Student',
+               order_strategy: 'Strategy') -> 'Student':
+        pass
+
+    def search(self, key) -> bool:
+        pass
+
+    def accept(self, visitor) -> None:
         pass
 
 
-class GPAOrder(Strategy):
-    def greater_than(self, node1, node2) -> bool:
-        if node1.get_gpa() > node2.get_gpa():
-            return True
+class Student(Node):
+    def __init__(self, first_name: str, last_name: str, red_id: int, gpa: float):
+        self._first_name = first_name
+        self._last_name = last_name
+        self._red_id = red_id
+        self._gpa = gpa
+        self._left_child = NullNode()
+        self._right_child = NullNode()
+
+    def get_left(self) -> 'Student':
+        return self._left_child
+
+    def get_right(self) -> 'Student':
+        return self._right_child
+
+    def get_red_id(self) -> int:
+        return self._red_id
+
+    def get_gpa(self) -> float:
+        return self._gpa
+
+    def get_last_name(self) -> str:
+        return self._last_name
+
+    def get_first_name(self) -> str:
+        return self._first_name
+
+    def for_each(self, lambda_function) -> None:
+        # inorder traversal
+        self._left_child.for_each(lambda_function)
+        lambda_function(self)
+        self._right_child.for_each(lambda_function)
+
+    def insert(
+            self, new_student: 'Student',
+            order_strategy: 'Strategy') -> 'Student':
+        # The chosen strategy dicates how the nodes are compared.
+        if order_strategy.compare(new_student, self):
+            self._right_child = self._right_child.insert(
+                new_student, order_strategy)
         else:
-            return False
+            self._left_child = self._left_child.insert(
+                new_student, order_strategy)
+        return self
+
+    def search(self, key: 'Student', order_strategy: 'Strategy') -> bool:
+        if self.get_red_id() == key.get_red_id():
+            return True
+        elif order_strategy.compare(key, self):
+            return self._right_child.search(key, order_strategy)
+        else:
+            return self._left_child.search(key, order_strategy)
+
+    def accept(self, visitor: 'Visitor') -> None:
+        visitor.visit_student(self)
+
+
+class NullNode(Node):
+
+    def get_left(self) -> None:
+        return
+
+    def get_right(self) -> None:
+        return
+
+    def for_each(self, lambda_function) -> None:
+        return
+
+    def insert(
+            self, new_student: 'Student', order_strategy: 'Strategy') -> 'Student':
+        """ 
+        When insert is called on a null node, 
+        the new node is inserted at that position
+        """
+        return new_student
+
+    def search(self, key: 'Student', order_strategy: 'Strategy') -> bool:
+        # if search finds a null node, the key is not present in the tree
+        return False
+
+    def accept(self, visitor: 'Visitor') -> None:
+        visitor.visit_null_node(self)
+
+
+class Strategy:
+    def compare(self, new_student: 'Student', current_student: 'Student') -> bool:
+        pass
 
 
 class NameOrder(Strategy):
-    def greater_than(self, node1, node2) -> bool:
-        # x<y means "does x come before y alphabetically?"
-        if node1.get_last_name() == node2.get_last_name():
-            if node1.get_first_name() < node1.get_first_name():
-                return True
-            else:
-                return False
-
-        elif node1._last_name < node2._last_name:
-            return True
+    def compare(self, new_student: 'Student', current_student: 'Student') -> bool:
+        # with strings: a > b means 'does a come after b alphabetically?'
+        if new_student.get_last_name() == current_student.get_last_name():
+            return new_student.get_first_name() > current_student.get_first_name()
         else:
-            return False
+            return new_student.get_last_name() > current_student.get_last_name()
 
 
-tree = BinarySearchTree()
-tree.insert('Mikesell', 'Evan', 820215988, 4.0)
-tree.insert('Mikesell', 'B', 9202, 3.2)
-tree.insert('lastname', 'firstname', 9202, 3.4)
+class GPAOrder(Strategy):
+    def compare(self, new_student: 'Student', current_student: 'Student') -> bool:
+        new_student_gpa = round(new_student.get_gpa())
+        current_student_gpa = round(current_student.get_gpa())
+        if new_student_gpa == current_student_gpa:
+            return new_student.get_red_id() > current_student.get_red_id()
+        else:
+            return new_student.get_gpa() > current_student.get_gpa()
 
 
-def x(a): return print(a._last_name)
-# tree.for_each(x)
+class RedIDOrder(Strategy):
+    def compare(self, new_student: 'Student', current_student: 'Student') -> bool:
+        return new_student.get_red_id() > current_student.get_red_id()
 
 
-name_strategy = NameOrder()
-gpa_strategy = GPAOrder()
-print("two nodes:")
-print(tree._root.toString())
-print(tree._root._left_child.toString())
-print(name_strategy.greater_than(tree._root, tree._root._left_child))  # false
-print(gpa_strategy.greater_than(tree._root, tree._root._left_child))  # true
+class Visitor:
+    """
+    Each node will have an accept function which calls it's visit function. 
+    """
+
+    def visit_null_node(self, node: 'NullNode') -> None:
+        pass
+
+    def visit_student(self, student: 'Student') -> None:
+        pass
 
 
-"""
-insert
-    method in BST
-    method in each node class
-    checks if greater or less than current node
-    if less, recursively call current_node.left.insert(nodeToBeInserted)
-    if current_node.left is a nullNode, the insert function sets current_node.left to a nonnull with the gpa, name, redid
+class NullCountVisitor(Visitor):
+
+    def __init__(self) -> None:
+        self._null_count = 0
+
+    def visit_null_node(self, node: 'NullNode') -> None:
+        self._null_count += 1
+
+    def visit_student(self, student: 'Student') -> None:
+        student.get_left().accept(self)
+        student.get_right().accept(self)
+
+    def get_null_count(self) -> int:
+        return self._null_count
 
 
+class PathVisitor(Visitor):
 
-strategy:
-    declare strategy class
-    gpaStrategy, nameStrategy
-    pick a strategy (gpa vs name)
-    insert method in the node calls strategy.compare(node1,node2), which uses either the gpa comparison between nodes, or the name comparison
+    def __init__(self) -> None:
+        self._longest_path = 0
+        self._total_path = 0
+        self._current_path = -1
+        self._student_count = 0
 
+    def visit_null_node(self, node: 'NullNode') -> None:
+        return
 
-visitor: 
-    number of null nodes
-        use the iterator, each time we visit a null node, count up
-    longest path
-        ?
+    def visit_student(self, student: 'Student') -> None:
+        """
+        Visit method is called on all student objects in the tree.
+        Counts the path length from the root student to each student.
+        """
+        self._current_path += 1
+        self._total_path += self._current_path
+        self._longest_path = max(self._longest_path, self._current_path)
+        self._student_count += 1
+        student.get_left().accept(self)
+        student.get_right().accept(self)
 
-"""
+        # decrementing current path because we are moving back up the tree
+        self._current_path -= 1
+
+    def get_average_path(self) -> float:
+        return self._total_path / self._student_count
+
+    def get_longest_path(self) -> int:
+        return self._longest_path
